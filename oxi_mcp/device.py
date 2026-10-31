@@ -17,7 +17,10 @@ def _match(names, hint):
 
 
 def ports():
-    return {"inputs": rtmidi.MidiIn().get_ports(), "outputs": rtmidi.MidiOut().get_ports()}
+    try:
+        return {"inputs": rtmidi.MidiIn().get_ports(), "outputs": rtmidi.MidiOut().get_ports()}
+    except RuntimeError as e:  # no MIDI backend, e.g. Linux without /dev/snd/seq
+        return {"inputs": [], "outputs": [], "error": str(e)}
 
 
 class Device:

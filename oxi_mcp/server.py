@@ -270,11 +270,14 @@ def oxi_pattern(project: str, seq: int = 0, pat: int = 0) -> dict:
 
 @mcp.tool()
 def oxi_edit_pattern(project: str, seq: int, pat: int, steps: list[dict] | None = None,
-                     tracks: list[dict] | None = None, length: int = 0, push: bool = False) -> dict:
+                     tracks: list[dict] | None = None, length: int = 0, base: int = -1, root: str = "",
+                     scale: str = "", channel: int = 0, push: bool = False) -> dict:
     """Replace one stored pattern's steps and commit it in rack-library (the same save path as the web
     editor). Mono/chord: steps = [{i, note, vel, gate, tie?}] (the whole pattern; omitted steps become
     empty), length optional. Multitrack: tracks = [{track 1-8, hits: [{i, vel, gate?}]}].
-    push=True also git-pushes. Copy to the SD card afterwards with oxi_export."""
+    base (MIDI note of grid row 0, C3 = 48), root (C..B), scale (major, minor, phrygian, ...) and channel (1-16)
+    can be set with or without steps; every note keeps its pitch. push=True also git-pushes.
+    Copy to the SD card afterwards with oxi_export."""
     edit = {"seq": seq, "pat": pat}
     if steps is not None:
         edit["steps"] = steps
@@ -282,6 +285,9 @@ def oxi_edit_pattern(project: str, seq: int, pat: int, steps: list[dict] | None 
         edit["tracks"] = tracks
     if length:
         edit["length"] = length
+    for k, v in (("base", base if base >= 0 else None), ("root", root), ("scale", scale), ("channel", channel)):
+        if v:
+            edit[k] = v
     return _ok(**library.edit(project, edit, push))
 
 

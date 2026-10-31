@@ -2,7 +2,11 @@
 import os
 import unittest
 
-from oxi_mcp import library, server, sysex as S
+from unittest import mock
+
+import rtmidi
+
+from oxi_mcp import device, library, server, sysex as S
 
 
 class FakeOut:
@@ -38,6 +42,14 @@ class Tools(unittest.TestCase):
         r = server.oxi_status()
         self.assertEqual(r["firmware"], "9.9.9")
         self.assertEqual(r["version_header"], "mkii")
+
+    def test_status_without_midi_backend(self):
+        def boom():
+            raise rtmidi.SystemError("MidiInAlsa::initialize: error creating ALSA sequencer client object.")
+        with mock.patch.object(rtmidi, "MidiIn", boom):
+            p = device.ports()
+        self.assertEqual((p["inputs"], p["outputs"]), ([], []))
+        self.assertIn("ALSA", p["error"])
 
     def test_remote_needs_enter(self):
         with self.assertRaises(RuntimeError):

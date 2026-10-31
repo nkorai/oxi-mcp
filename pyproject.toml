@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 keywords = ["mcp", "oxi-one", "midi", "sysex", "sequencer", "eurorack"]
 requires-python = ">=3.11"
-dependencies = ["mcp>=1.20", "python-rtmidi>=1.5", "pillow>=10"]
+dependencies = ["mcp>=1.20,<2", "python-rtmidi>=1.5", "pillow>=10"]
 
 [project.urls]
 Repository = "https://github.com/nkorai/oxi-mcp"

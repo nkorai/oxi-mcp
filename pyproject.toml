@@ -1,0 +1,16 @@
+[project]
+name = "oxi-mcp"
+version = "0.1.0"
+description = "MCP server for the OXI ONE MKII: USB MIDI, SysEx remote mode, and rack-library projects"
+requires-python = ">=3.11"
+dependencies = ["mcp>=1.20", "python-rtmidi>=1.5", "pillow>=10"]
+
+[project.scripts]
+oxi-mcp = "oxi_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["oxi_mcp"]

@@ -1,15 +1,21 @@
 [project]
 name = "oxi-mcp"
 version = "0.1.0"
-description = "MCP server for the OXI ONE MKII: USB MIDI, SysEx remote mode, and rack-library projects"
+description = "MCP server for the OXI ONE MKII sequencer: USB MIDI, transport/clock, and the SysEx remote mode (pads, LEDs, OLED, events)"
+readme = "README.md"
+license = "MIT"
+keywords = ["mcp", "oxi-one", "midi", "sysex", "sequencer", "eurorack"]
 requires-python = ">=3.11"
 dependencies = ["mcp>=1.20", "python-rtmidi>=1.5", "pillow>=10"]
+
+[project.urls]
+Repository = "https://github.com/nkorai/oxi-mcp"
 
 [project.scripts]
 oxi-mcp = "oxi_mcp.server:main"
 
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

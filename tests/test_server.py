@@ -77,7 +77,7 @@ class Tools(unittest.TestCase):
 
     def test_oled_sends_full_dump(self):
         server.oxi_remote(True)
-        r = server.oxi_oled(["HARDFAST", "160 BPM"], preview=True)
+        r = server.oxi_oled(["OXI MCP", "160 BPM"], preview=True)
         self.assertTrue(os.path.isfile(r["preview"]))
         msg = self.out.sent[-1]
         self.assertEqual(len(msg), 6 + 1 + 2048 + 1)
@@ -89,7 +89,7 @@ class Tools(unittest.TestCase):
         self.assertEqual(self.out.sent[-2:], [b"\xfa", bytes([0xCF, 2])])
 
 
-@unittest.skipUnless((library.ROOT / "projects").is_dir(), "rack-library not checked out")
+@unittest.skipUnless(library.ROOT and (library.ROOT / "projects").is_dir(), "RACK_LIBRARY not set")
 class Library(unittest.TestCase):
     def test_projects_and_pattern(self):
         ps = server.oxi_projects()["projects"]

@@ -1,4 +1,5 @@
-"""My OXI projects in rack-library (projects/<slug>/): read decoded patterns, apply edits.
+"""Optional: OXI projects kept in a rack-library checkout (projects/<slug>/): read decoded patterns, apply edits.
+Enabled by setting RACK_LIBRARY to the checkout's path; without it the project tools say so.
 
 Edits go through rack-library's own save path (tools/serve.py save_pattern): the .oxipro is patched,
 project.md/patterns.json/the index are regenerated and the change is committed (pushed only if asked).
@@ -8,12 +9,14 @@ import os
 import sys
 from pathlib import Path
 
-ROOT = Path(os.environ.get("RACK_LIBRARY", Path.home() / "Projects" / "rack-library"))
+ROOT = Path(os.environ["RACK_LIBRARY"]) if os.environ.get("RACK_LIBRARY") else None
 _serve = None
 
 
 def _tools():
     global _serve
+    if ROOT is None or not (ROOT / "tools" / "serve.py").is_file():
+        raise RuntimeError("project tools need RACK_LIBRARY set to a rack-library checkout (tools/serve.py, projects/)")
     if _serve is None:
         t = str(ROOT / "tools")
         if t not in sys.path:
@@ -24,6 +27,7 @@ def _tools():
 
 
 def projects():
+    _tools()
     out = []
     for md in sorted((ROOT / "projects").glob("*/project.md")):
         f = _tools().front_matter(md.read_text(encoding="utf-8").replace("\r\n", "\n"))

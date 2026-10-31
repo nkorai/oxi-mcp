@@ -14,7 +14,7 @@ from . import device, library, screen
 from . import sysex as S
 
 mcp = FastMCP("oxi-one", instructions=(
-    "Control an OXI ONE MKII sequencer over USB MIDI and read/edit its projects stored in rack-library. "
+    "Control an OXI ONE MKII sequencer over USB MIDI (and, if RACK_LIBRARY is set, read/edit projects stored there). "
     "Call oxi_status first. For pads/LEDs/OLED call oxi_remote(on=True) first; the device then shows only "
     "what you draw until oxi_remote(on=False). Gear facts come from rack-library's manual cards, not memory."))
 dev = device.Device()
@@ -250,12 +250,13 @@ def oxi_probe_project(project: int = 1, header: str = "mkii", wait_s: float = 2.
     return oxi_sysex(f"05 00 {(project - 1) & 0x7F:02x} 00", header, wait_s)
 
 
-# --- rack-library projects (offline) ----------------------------------------------------------------
+# --- rack-library projects (offline, optional: RACK_LIBRARY) ----------------------------------------------------------------
 
 @mcp.tool()
 def oxi_projects() -> dict:
-    """My OXI projects stored in rack-library (projects/<slug>/)."""
-    return {"root": str(library.ROOT), "projects": library.projects()}
+    """OXI projects stored in the rack-library checkout at RACK_LIBRARY (projects/<slug>/)."""
+    projects = library.projects()
+    return {"root": str(library.ROOT), "projects": projects}
 
 
 @mcp.tool()

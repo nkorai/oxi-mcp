@@ -130,6 +130,13 @@ class Sync(unittest.TestCase):
         with self.assertRaises(ValueError):
             card.export(self.card, "hardfast")
 
+    def test_export_overwrites_only_when_told(self):
+        from oxi_mcp import server
+        self.device_save({"seq": 1, "pat": 1, "channel": 5})
+        r = server.oxi_export("hardfast", str(self.card), overwrite=True)
+        self.assertEqual((self.card / "Projects" / "HARDFAST.oxipro").read_bytes(), self.orig)
+        self.assertTrue(r["copied"] and r["overwrote"])
+
 
 if __name__ == "__main__":
     unittest.main()

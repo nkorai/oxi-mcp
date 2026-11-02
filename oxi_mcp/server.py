@@ -332,10 +332,11 @@ def oxi_card_pull(file: str = "", card_path: str = "", push: bool = False) -> di
 
 
 @mcp.tool()
-def oxi_export(project: str, card_path: str = "") -> dict:
+def oxi_export(project: str, card_path: str = "", overwrite: bool = False) -> dict:
     """Copy a stored project's .oxipro onto the card's Projects folder (card found automatically, or card_path).
-    Never overwrites a card file that differs; pull it first. Load it on the OXI: Project menu > Load from SD Card."""
-    return _ok(**card.export(card.find(card_path), project))
+    A card file that differs is kept (the card wins; pull it first). overwrite=True replaces it with the
+    library's version: only when the user explicitly says to. Load it on the OXI: Project menu > Load from SD Card."""
+    return _ok(**card.export(card.find(card_path), project, overwrite))
 
 
 def main():

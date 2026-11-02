@@ -61,7 +61,7 @@ reader, the tools find it by the folders the OXI creates at power-up (`Projects`
 - `oxi_card_pull` takes the card's version into the library (notes in `project.md` are kept; git keeps the old file).
 - `oxi_edit_pattern` on a project that is on the card pulls the card's version first, edits it, and writes it back
   to the card, refusing if the card changed in between. `on_card=False` edits only the library.
-- `oxi_export` copies a library project onto the card, and never overwrites a card file that differs.
+- `oxi_export` copies a library project onto the card. A card file that differs is kept unless you tell it to overwrite (`overwrite=True`), which replaces the card's version with the library's.
 
 The OXI keeps projects in 20 internal slots; a project reaches the card only through
 Project menu (Shift + Perf) > Copy to SD Card, and comes back through Load from SD Card (manual p.23).

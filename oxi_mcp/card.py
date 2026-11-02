@@ -170,15 +170,20 @@ def edit(root, slug, change, push=False):
     return out
 
 
-def export(root, slug):
-    """Copy a stored project onto the card. Never overwrites a card file that differs (pull that first)."""
+def export(root, slug, overwrite=False):
+    """Copy a stored project onto the card. A card file that differs is kept (pull it first) unless
+    overwrite, which only the user asks for: it replaces the card's version with the library's."""
     src = library.oxipro_path(slug)
     dest = Path(root) / "Projects" / src.name
+    replaced = False
     if dest.exists():
         if dest.read_bytes() == src.read_bytes():
             return {"copied": None, "card": str(dest), "note": "already on the card, identical"}
-        raise ValueError(f"{dest} differs from the library's copy; the card wins: run oxi_card_pull first")
+        if not overwrite:
+            raise ValueError(f"{dest} differs from the library's copy; the card wins: run oxi_card_pull first, "
+                             "or export with overwrite=True if the user says to replace the card's version")
+        replaced = True
     tmp = dest.with_suffix(".tmp")
     tmp.write_bytes(src.read_bytes())
     os.replace(tmp, dest)
-    return {"copied": str(dest)}
+    return {"copied": str(dest), "overwrote": replaced}

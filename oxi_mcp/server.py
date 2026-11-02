@@ -10,13 +10,14 @@ import time
 
 from mcp.server.fastmcp import FastMCP
 
-from . import device, library, screen
+from . import card, device, library, screen
 from . import sysex as S
 
 mcp = FastMCP("oxi-one", instructions=(
     "Control an OXI ONE MKII sequencer over USB MIDI (and, if RACK_LIBRARY is set, read/edit projects stored there). "
     "Call oxi_status first. For pads/LEDs/OLED call oxi_remote(on=True) first; the device then shows only "
-    "what you draw until oxi_remote(on=False). Gear facts come from rack-library's manual cards, not memory."))
+    "what you draw until oxi_remote(on=False). The OXI's SD card wins over the library: check oxi_card and "
+    "pull before editing. Gear facts come from rack-library's manual cards, not memory."))
 dev = device.Device()
 
 
@@ -272,13 +273,16 @@ def oxi_pattern(project: str, seq: int = 0, pat: int = 0) -> dict:
 @mcp.tool()
 def oxi_edit_pattern(project: str, seq: int, pat: int, steps: list[dict] | None = None,
                      tracks: list[dict] | None = None, length: int = 0, base: int = -1, root: str = "",
-                     scale: str = "", channel: int = 0, push: bool = False) -> dict:
+                     scale: str = "", channel: int = 0, push: bool = False, on_card: bool = True,
+                     card_path: str = "") -> dict:
     """Replace one stored pattern's steps and commit it in rack-library (the same save path as the web
     editor). Mono/chord: steps = [{i, note, vel, gate, tie?}] (the whole pattern; omitted steps become
     empty), length optional. Multitrack: tracks = [{track 1-8, hits: [{i, vel, gate?}]}].
     base (MIDI note of grid row 0, C3 = 48), root (C..B), scale (major, minor, phrygian, ...) and channel (1-16)
     can be set with or without steps; every note keeps its pitch. push=True also git-pushes.
-    Copy to the SD card afterwards with oxi_export."""
+    The card wins: if the OXI's SD card is mounted (or card_path given) and holds this project, the card's
+    version is pulled first and the edited file is written back to the card. on_card=False edits only
+    the library."""
     edit = {"seq": seq, "pat": pat}
     if steps is not None:
         edit["steps"] = steps
@@ -289,20 +293,49 @@ def oxi_edit_pattern(project: str, seq: int, pat: int, steps: list[dict] | None 
     for k, v in (("base", base if base >= 0 else None), ("root", root), ("scale", scale), ("channel", channel)):
         if v:
             edit[k] = v
-    return _ok(**library.edit(project, edit, push))
+    sd = None
+    if on_card:
+        try:
+            sd = card.find(card_path)
+        except ValueError:
+            if card_path:
+                raise
+    if sd and (sd / "Projects" / library.oxipro_path(project).name).is_file():
+        return _ok(**card.edit(sd, project, edit, push))
+    out = library.edit(project, edit, push)
+    out["card"] = None
+    out["note"] = ("no OXI card mounted; library only" if not sd else
+                   f"{library.oxipro_path(project).name} is not on the card; oxi_export copies it there")
+    return _ok(**out)
+
+
+# --- the OXI's microSD card (needs RACK_LIBRARY to decode and sync) -----------------------------------------------
+
+@mcp.tool()
+def oxi_card(card_path: str = "") -> dict:
+    """The mounted OXI microSD card (found by its folders, or card_path): each project file with its name, BPM,
+    CRC check and how it compares to rack-library (same / card differs / new). The card wins: pull with
+    oxi_card_pull before trusting the library's copy."""
+    sd = card.find(card_path)
+    try:
+        return card.listing(sd)
+    except RuntimeError as e:  # no RACK_LIBRARY: list files only
+        return {**card.listing(sd, lib=False), "note": str(e)}
 
 
 @mcp.tool()
-def oxi_export(project: str, sd_projects_dir: str) -> dict:
-    """Copy a stored project's .oxipro into the SD card's Projects folder (never overwrites)."""
-    import shutil
-    from pathlib import Path
-    src = library.oxipro_path(project)
-    dest = Path(sd_projects_dir) / src.name
-    if dest.exists():
-        raise ValueError(f"{dest} exists; not overwriting")
-    shutil.copy2(src, dest)
-    return _ok(copied=str(dest))
+def oxi_card_pull(file: str = "", card_path: str = "", push: bool = False) -> dict:
+    """Take the card's projects into rack-library (the card wins): a changed file replaces the stored one,
+    keeping project.md notes; a new one is added as projects/<slug>/. file = one card file name, else all.
+    Each is committed; push=True also git-pushes."""
+    return _ok(**card.pull(card.find(card_path), file, push))
+
+
+@mcp.tool()
+def oxi_export(project: str, card_path: str = "") -> dict:
+    """Copy a stored project's .oxipro onto the card's Projects folder (card found automatically, or card_path).
+    Never overwrites a card file that differs; pull it first. Load it on the OXI: Project menu > Load from SD Card."""
+    return _ok(**card.export(card.find(card_path), project))
 
 
 def main():

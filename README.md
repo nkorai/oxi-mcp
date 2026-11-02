@@ -33,7 +33,8 @@ port for testing without the device.
 | plain MIDI | `oxi_transport`, `oxi_clock` (24 ppqn from a background thread), `oxi_select_column` (Program Change), `oxi_send_note`, `oxi_send_cc` | MKII manual: sync p.265, PC column select p.240, transpose p.68, MIDI capture p.93 |
 | remote mode | `oxi_remote`, `oxi_grid`, `oxi_led`, `oxi_led_names`, `oxi_oled` (text, with PNG preview), `oxi_events` (pads, buttons, encoders) | OXI **Remote Control Reference** sheet, MKII tab (linked from manual p.273) |
 | raw | `oxi_sysex` (refuses firmware-update / memory-reset / project send+delete unless `allow_destructive=True`), `oxi_probe_project` | **experimental**: MK1 desktop-app protocol |
-| projects (optional) | `oxi_projects`, `oxi_pattern`, `oxi_show_pattern` (draw a pattern on the pads), `oxi_edit_pattern`, `oxi_export` (copy to SD card) | needs `RACK_LIBRARY`, below |
+| projects (optional) | `oxi_projects`, `oxi_pattern`, `oxi_show_pattern` (draw a pattern on the pads), `oxi_edit_pattern` | needs `RACK_LIBRARY`, below |
+| SD card | `oxi_card` (what's on the card vs the library), `oxi_card_pull` (card -> library), `oxi_export` (library -> card) | MKII manual p.23, p.277; decoding needs `RACK_LIBRARY` |
 
 Things to ask for: *"show 'HELLO' on the OXI screen"*, *"light the grid as a VU meter"*, *"run clock at 128 and
 start"*, *"jump to pattern column 3"*, *"tell me which pads I press"*.
@@ -49,6 +50,21 @@ claude mcp add --scope user oxi-one -e RACK_LIBRARY=/path/to/rack-library -- pyt
 ```
 
 Without it those tools return an error and everything else works.
+
+### The SD card wins
+
+Projects are played and saved on the OXI, so the microSD card is the source of truth. With the card in a
+reader, the tools find it by the folders the OXI creates at power-up (`Projects`, `Settings`, `Instruments`,
+`Grooves`, `Scales`); pass `card_path` or set `OXI_CARD` if it is somewhere else.
+
+- `oxi_card` lists the card's projects and says whether each is the same as the library's copy, differs, or is new.
+- `oxi_card_pull` takes the card's version into the library (notes in `project.md` are kept; git keeps the old file).
+- `oxi_edit_pattern` on a project that is on the card pulls the card's version first, edits it, and writes it back
+  to the card, refusing if the card changed in between. `on_card=False` edits only the library.
+- `oxi_export` copies a library project onto the card, and never overwrites a card file that differs.
+
+The OXI keeps projects in 20 internal slots; a project reaches the card only through
+Project menu (Shift + Perf) > Copy to SD Card, and comes back through Load from SD Card (manual p.23).
 
 ## Protocol notes
 

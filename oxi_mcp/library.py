@@ -11,26 +11,41 @@ from pathlib import Path
 
 ROOT = Path(os.environ["RACK_LIBRARY"]) if os.environ.get("RACK_LIBRARY") else None
 _serve = None
+_path = None  # the tools/ folder put on sys.path
 
 
-def _tools():
-    global _serve
+def use(root):
+    """Point the project tools at another checkout: forgets every module loaded from the old one's tools/."""
+    global ROOT, _serve, _path
+    if ROOT is not None:
+        old = (ROOT / "tools").resolve()
+        for name, m in list(sys.modules.items()):
+            f = getattr(m, "__file__", None)
+            if f and Path(f).resolve().parent == old:
+                del sys.modules[name]
+        sys.path[:] = [x for x in sys.path if not x or Path(x).resolve() != old]
+    ROOT = Path(root) if root else None
+    _serve = _path = None
+
+
+def tools():
+    """rack-library's tools/serve.py (and through it .oxi and .project), imported from ROOT."""
+    global _serve, _path
     if ROOT is None or not (ROOT / "tools" / "serve.py").is_file():
         raise RuntimeError("project tools need RACK_LIBRARY set to a rack-library checkout (tools/serve.py, projects/)")
     if _serve is None:
-        t = str(ROOT / "tools")
-        if t not in sys.path:
-            sys.path.insert(0, t)
+        _path = str(ROOT / "tools")
+        sys.path.insert(0, _path)
         import serve  # noqa: E402  rack-library/tools/serve.py
         _serve = serve
     return _serve
 
 
 def projects():
-    _tools()
+    tools()
     out = []
     for md in sorted((ROOT / "projects").glob("*/project.md")):
-        f = _tools().front_matter(md.read_text(encoding="utf-8").replace("\r\n", "\n"))
+        f = tools().front_matter(md.read_text(encoding="utf-8").replace("\r\n", "\n"))
         out.append({k: f.get(k) for k in ("slug", "name", "bpm", "status", "updated", "file")})
     return out
 
@@ -50,7 +65,7 @@ def pattern(slug, seq, pat):
 
 
 def edit(slug, edit, push=False):
-    s = _tools()
+    s = tools()
     pf = s.project_file(slug)
     if not pf:
         raise ValueError(f"no project {slug!r}")
@@ -63,7 +78,7 @@ def edit(slug, edit, push=False):
 
 
 def oxipro_path(slug):
-    pf = _tools().project_file(slug)
+    pf = tools().project_file(slug)
     if not pf:
         raise ValueError(f"no project {slug!r}")
     return pf[2]

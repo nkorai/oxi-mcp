@@ -3,14 +3,14 @@
 What is solid: plain MIDI the manual documents (clock/transport when Sync = USB, Program Change
 selecting arranger pattern columns, notes/CC), the MKII remote-control SysEx from OXI's Remote
 Control Reference sheet (pads, button LEDs, OLED, events), and offline .oxipro work through
-rack-library. What is experimental: SYSTEM version / PROJECT requests, which come from the MK1
-desktop app and are undocumented for MKII.
+rack-library, plus project transfer over USB (the MK1 desktop app's PROJECT SysEx, measured working on
+the MKII). What is experimental: the SYSTEM version request, undocumented for MKII.
 """
 import time
 
 from mcp.server.fastmcp import FastMCP
 
-from . import card, device, library, screen
+from . import card, device, library, screen, transfer
 from . import sysex as S
 
 mcp = FastMCP("oxi-one", instructions=(
@@ -249,6 +249,29 @@ def oxi_probe_project(project: int = 1, header: str = "mkii", wait_s: float = 2.
     """EXPERIMENTAL, read-only: ask for a project header with the MK1 desktop request (05 00 <project-1> 00).
     Reports whatever SysEx comes back; MKII may ignore it."""
     return oxi_sysex(f"05 00 {(project - 1) & 0x7F:02x} 00", header, wait_s)
+
+
+# --- projects on the device itself, over USB (no SD card) --------------------------------------------------------
+
+@mcp.tool()
+def oxi_device_projects() -> dict:
+    """The 20 project slots in the connected OXI's memory, read over USB: name, file version and BPM, or empty.
+    (MK1 desktop-app SysEx; the MKII answers it, measured 2026-11-02.)"""
+    dev.ensure()
+    return _ok(slots=transfer.device_projects(dev))
+
+
+@mcp.tool()
+def oxi_device_push(project: str, slot: int, overwrite: bool = False) -> dict:
+    """Send a rack-library project straight into the OXI's memory over USB: header plus all 128 patterns, each
+    ACKed, then read back and compared. slot 1-20; a used slot is refused unless overwrite=True, which is only
+    for when the user explicitly says to replace what is there (oxi_device_projects shows the slots).
+    On the OXI: open the project browser and load that slot."""
+    dev.ensure()
+    data = library.oxipro_path(project).read_bytes()
+    oxi = library.tools().oxi
+    blocks = [oxi.block(data, k) for k in range(transfer.PATTERNS)]
+    return _ok(**transfer.push(dev, data[:oxi.HEADER_LEN], blocks, slot, overwrite))
 
 
 # --- rack-library projects (offline, optional: RACK_LIBRARY) ----------------------------------------------------------------

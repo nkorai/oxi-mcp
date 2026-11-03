@@ -33,6 +33,7 @@ class Device:
         self.remote = False
         self.lock = threading.Lock()
         self._clock = None
+        self._sysex = None  # a long SysEx still arriving in pieces
 
     # --- connection --------------------------------------------------------------------------
     @property
@@ -74,6 +75,15 @@ class Device:
     # --- io ----------------------------------------------------------------------------------
     def _on_msg(self, event, _data=None):
         msg, _dt = event
+        # Windows MIDI hands a long SysEx over in 1024-byte pieces: join them up to the F7
+        if msg and msg[0] == 0xF0 and msg[-1] != 0xF7:
+            self._sysex = list(msg)
+            return
+        if self._sysex is not None and msg and (msg[0] < 0x80 or msg[0] == 0xF7):
+            self._sysex += msg
+            if self._sysex[-1] != 0xF7:
+                return
+            msg, self._sysex = self._sysex, None
         ev = S.decode_event(msg)
         if ev is None:
             return

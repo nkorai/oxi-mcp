@@ -180,6 +180,10 @@ def decode_event(msg):
         hb = body_of(msg)
         if hb and hb[1] == REMOTE_ACK:
             return {"type": "remote_ack"}
+        if hb and hb[1][:1] == bytes([CAT_PROJECT]):
+            b = hb[1]
+            return {"type": "project", "op": b[1] if len(b) > 1 else None, "slot": b[2] if len(b) > 2 else None,
+                    "idx": b[3] if len(b) > 3 else None, "data": b[4:], "bytes": len(msg)}
         v = parse_version(msg)
         if v is not None:
             return {"type": "version", "kind": "hw" if hb[1][1] == SYSTEM_HW_VERSION else "sw", "value": v,

@@ -20,3 +20,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["oxi_mcp"]
+
+[tool.setuptools.package-data]
+oxi_mcp = ["default_blocks.bin"]

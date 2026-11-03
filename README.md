@@ -34,6 +34,7 @@ port for testing without the device.
 | remote mode | `oxi_remote`, `oxi_grid`, `oxi_led`, `oxi_led_names`, `oxi_oled` (text, with PNG preview), `oxi_events` (pads, buttons, encoders) | OXI **Remote Control Reference** sheet, MKII tab (linked from manual p.273) |
 | raw | `oxi_sysex` (refuses firmware-update / memory-reset / project send+delete unless `allow_destructive=True`), `oxi_probe_project` | **experimental**: MK1 desktop-app protocol |
 | projects (optional) | `oxi_projects`, `oxi_pattern`, `oxi_show_pattern` (draw a pattern on the pads), `oxi_edit_pattern` | needs `RACK_LIBRARY`, below |
+| device projects | `oxi_device_projects` (the 20 internal slots), `oxi_device_push` (library project -> a slot over USB; refuses a used slot unless `overwrite=True`) | MK1 project SysEx, measured working on the MKII 2026-11-02 |
 | SD card | `oxi_card` (what's on the card vs the library), `oxi_card_pull` (card -> library), `oxi_export` (library -> card) | MKII manual p.23, p.277; decoding needs `RACK_LIBRARY` |
 
 Things to ask for: *"show 'HELLO' on the OXI screen"*, *"light the grid as a VU meter"*, *"run clock at 128 and
@@ -80,7 +81,8 @@ Project menu (Shift + Perf) > Copy to SD Card, and comes back through Load from 
 
 - The remote-mode ACK and event decoding.
 - OLED pixel packing: undocumented. `oxi_oled(layout="pages")` is SSD1306-style; try `"rows"` if text is scrambled.
-- SYSTEM version (`03 00`) and PROJECT (`05 ..`) requests come from the MK1 desktop app and may not exist on MKII.
+- SYSTEM version (`03 00`) comes from the MK1 desktop app and may not exist on MKII.
+- PROJECT (`05 ..`) transfer works on the MKII (measured 2026-11-02): get/send header `05 00`/`05 01` and pattern `05 02`/`05 03` per slot (0-19) and pattern (seq*16+pat), data 7-bit packed (a high-bits byte, then 7 bytes), ACK `05 53`, NACK `05 54`. Current firmware stores headers as version 12 (0x2A44 bytes) and converts a sent version-10 header itself. Windows delivers long SysEx in 1024-byte pieces; `device.py` joins them.
 
 Reports from MKII owners are welcome: open an issue with your firmware version and what you saw.
 

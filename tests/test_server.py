@@ -120,9 +120,12 @@ class Library(unittest.TestCase):
             slug = server.oxi_projects()["projects"][0]["slug"]
             for p in server.oxi_pattern(slug)["patterns"]:
                 n = len(out.sent)
-                r = server.oxi_show_pattern(slug, p["seq"], p["pat"])
+                first = min([x["i"] for x in p.get("steps", [])] + [h["i"] for t in p.get("tracks", []) for h in t["hits"]],
+                            default=0)
+                r = server.oxi_show_pattern(slug, p["seq"], p["pat"], page=first // 16)  # a riser can start late
                 self.assertEqual(len(out.sent) - n, 128)
-                self.assertGreater(r["lit"], 0, p["name"])
+                if p.get("steps") or any(t["hits"] for t in p.get("tracks", [])):  # seq 2 pads to 16 with empties
+                    self.assertGreater(r["lit"], 0, p["name"])
         finally:
             d.out, d.remote = None, False
 

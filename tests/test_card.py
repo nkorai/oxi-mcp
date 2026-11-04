@@ -77,12 +77,12 @@ class Sync(unittest.TestCase):
     def test_same_then_card_differs(self):
         self.assertEqual(self.state("HARDFAST.oxipro")["state"], "same")
         self.assertEqual(self.state("HARDFAST.oxipro")["slug"], "hardfast")
-        self.device_save({"seq": 1, "pat": 1, "channel": 5})
+        self.device_save({"seq": 1, "pat": 1, "channel": 12})
         self.assertEqual(self.state("HARDFAST.oxipro")["state"], "card differs")
 
     def test_pull_takes_the_card_and_keeps_notes(self):
         notes = (self.lib / "projects/hardfast/project.md").read_text(encoding="utf-8").split("## Patterns")[0]
-        new = self.device_save({"seq": 1, "pat": 1, "channel": 5})
+        new = self.device_save({"seq": 1, "pat": 1, "channel": 12})
         r = card.pull(self.card)
         self.assertEqual([(p["slug"], p["action"]) for p in r["pulled"]], [("hardfast", "updated")])
         self.assertEqual((self.lib / "projects/hardfast/HARDFAST.oxipro").read_bytes(), new)
@@ -126,13 +126,13 @@ class Sync(unittest.TestCase):
     def test_export_adds_but_never_overwrites_a_different_card_file(self):
         (self.card / "Projects" / "HARDFAST.oxipro").unlink()
         self.assertTrue(card.export(self.card, "hardfast")["copied"])
-        self.device_save({"seq": 1, "pat": 1, "channel": 5})
+        self.device_save({"seq": 1, "pat": 1, "channel": 12})
         with self.assertRaises(ValueError):
             card.export(self.card, "hardfast")
 
     def test_export_overwrites_only_when_told(self):
         from oxi_mcp import server
-        self.device_save({"seq": 1, "pat": 1, "channel": 5})
+        self.device_save({"seq": 1, "pat": 1, "channel": 12})
         r = server.oxi_export("hardfast", str(self.card), overwrite=True)
         self.assertEqual((self.card / "Projects" / "HARDFAST.oxipro").read_bytes(), self.orig)
         self.assertTrue(r["copied"] and r["overwrote"])

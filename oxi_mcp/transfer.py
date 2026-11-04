@@ -15,6 +15,8 @@ from . import sysex as S
 
 SLOTS = 20
 PATTERNS = 128
+READBACK_WAIT = 5.0  # seconds per try; the device can stay silent a while after the last pattern (saving)
+READBACK_TRIES = 6
 
 
 def default_block(k):
@@ -97,7 +99,7 @@ def push(dev, hdr, blocks, slot, overwrite=False, default=default_block):
         blk = blocks[k] if blocks[k] is not None else default(k)
         _need_ack(_ask(dev, [S.CAT_PROJECT, S.PROJECT_SEND_PATTERN, s, k, *pack7(_wire(blk))], S.ACK), f"pattern {k}")
     name = describe(hdr)["name"]
-    back = describe(header(dev, slot))["name"]
+    back = describe(_settled_header(dev, s))["name"]
     if back != name:
         raise RuntimeError(f"slot {slot} reads back as {back!r}, not {name!r}")
     bad = [k for k in range(PATTERNS) if blocks[k] is not None and pattern(dev, slot, k) != _wire(blocks[k])]
@@ -105,6 +107,18 @@ def push(dev, hdr, blocks, slot, overwrite=False, default=default_block):
         raise RuntimeError(f"slot {slot}: patterns {bad} read back different")
     return {"slot": slot, "name": name, "replaced": describe(old)["name"] if old else None,
             "patterns": PATTERNS, "verified": sum(b is not None for b in blocks)}
+
+
+def _settled_header(dev, s):
+    """The header read back after a write: the OXI answered nothing for 5 s straight after the last pattern
+    on 2026-11-04 (the write had worked), so ask again for up to READBACK_TRIES x READBACK_WAIT seconds."""
+    for _ in range(READBACK_TRIES - 1):
+        try:
+            return unpack7(_ask(dev, [S.CAT_PROJECT, S.PROJECT_GET_HEADER, s, 0], S.PROJECT_SEND_HEADER,
+                                READBACK_WAIT)["data"])
+        except RuntimeError:
+            pass
+    return unpack7(_ask(dev, [S.CAT_PROJECT, S.PROJECT_GET_HEADER, s, 0], S.PROJECT_SEND_HEADER, READBACK_WAIT)["data"])
 
 
 def _need_ack(ev, what):

@@ -21,6 +21,8 @@ def block(n, fill):
 class FakeOxi:
     def __init__(self, dev):
         self.dev, self.slots, self.sent = dev, {}, []
+        self.busy_after_write = 0  # header requests ignored after the last pattern lands (the device saving)
+        self.busy = 0
 
     def reply(self, body):
         msg = S.frame(body)  # Windows MIDI hands long SysEx over in 1024-byte pieces
@@ -35,6 +37,9 @@ class FakeOxi:
         if cat != S.CAT_PROJECT or slot >= 20:
             return
         if op == S.PROJECT_GET_HEADER:
+            if self.busy:
+                self.busy -= 1
+                return
             hdr = self.slots.get(slot, {}).get("header")
             self.reply(bytes([5, 1, slot, 0]) + (T.pack7(hdr) if hdr else b""))
         elif op == S.PROJECT_GET_PATTERN:
@@ -46,6 +51,8 @@ class FakeOxi:
         elif op == S.PROJECT_SEND_PATTERN:
             self.slots.setdefault(slot, {})[idx] = T.unpack7(body[4:])
             self.reply(bytes([5, S.ACK]))
+            if idx == 127:
+                self.busy = self.busy_after_write
 
     def close_port(self):
         pass
@@ -98,6 +105,19 @@ class Device(unittest.TestCase):
         self.assertEqual(self.oxi.slots[1]["header"], hdr)
         self.assertEqual(self.oxi.slots[1][17], blocks[17][:3805])
         self.assertEqual(self.oxi.slots[1][5], block(12, 5)[:20])  # empty slots get the default block
+
+    # 2026-11-04 on the device: all 128 patterns ACKed and stored, but the read-back header straight after went
+    # unanswered for 5 s three pushes running, so push reported a failure for a write that had worked
+    def test_push_waits_for_the_device_to_finish_saving(self):
+        self.oxi.busy_after_write = 2
+        hdr = b"\x0a\x00\xfc\x2bCHOP DROP\0\0\0" + b"\x40\x06" + b"\x11" * 3000
+        old = T.READBACK_WAIT
+        T.READBACK_WAIT = 0.05
+        try:
+            r = T.push(server.dev, hdr, [None] * 128, slot=2, default=lambda k: block(12, k))
+        finally:
+            T.READBACK_WAIT = old
+        self.assertEqual(r["name"], "CHOP DROP")
 
     def test_push_tool_reads_the_library_project(self):
         from oxi_mcp import library

@@ -27,12 +27,26 @@ def _ok(**kw):
 
 # --- connection --------------------------------------------------------------------------------
 
+STARTED = time.time()
+
+
+def stale():
+    """A warning when this package's code changed after the server started (the client still runs the old code)."""
+    from pathlib import Path
+    newer = sorted(p.name for p in Path(__file__).parent.glob("*.py") if p.stat().st_mtime > STARTED)
+    if newer:
+        return f"{', '.join(newer)} changed after this server started: restart it (/mcp in Claude Code) to run the new code"
+    return None
+
+
 @mcp.tool()
 def oxi_status(probe: bool = True) -> dict:
     """MIDI ports, whether the OXI is connected, remote-mode state, clock, and (probe=True) a firmware
     version request (experimental on MKII: MK1 SYSTEM message, tried with the MKII then the MK1 header)."""
     out = {"ports": device.ports(), "connected": dev.connected, "output": dev.out_name, "input": dev.in_name,
            "remote_mode": dev.remote, "clock_bpm": dev.clock_bpm}
+    if stale():
+        out["stale"] = stale()
     if not dev.connected:
         try:
             out.update(connected=True, **dev.connect())
@@ -271,7 +285,10 @@ def oxi_device_push(project: str, slot: int, overwrite: bool = False) -> dict:
     data = library.oxipro_path(project).read_bytes()
     oxi = library.tools().oxi
     blocks = [oxi.block(data, k) for k in range(transfer.PATTERNS)]
-    return _ok(**transfer.push(dev, data[:oxi.HEADER_LEN], blocks, slot, overwrite))
+    try:
+        return _ok(**transfer.push(dev, data[:oxi.HEADER_LEN], blocks, slot, overwrite))
+    except RuntimeError as e:
+        raise RuntimeError(f"{e} ({stale()})" if stale() else str(e)) from e
 
 
 # --- rack-library projects (offline, optional: RACK_LIBRARY) ----------------------------------------------------------------

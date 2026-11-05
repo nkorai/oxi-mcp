@@ -130,5 +130,18 @@ class Library(unittest.TestCase):
             d.out, d.remote = None, False
 
 
+# 2026-11-05: a push kept timing out because the server process predated the commit that fixed it; status names
+# that state instead of it being found by reading process start times
+class Stale(unittest.TestCase):
+    def test_status_flags_code_newer_than_the_server(self):
+        with mock.patch.object(server, "STARTED", 0.0):
+            self.assertIn("restart", server.stale() or "")
+
+    def test_fresh_server_is_not_stale(self):
+        import time
+        with mock.patch.object(server, "STARTED", time.time() + 60):
+            self.assertIsNone(server.stale())
+
+
 if __name__ == "__main__":
     unittest.main()
